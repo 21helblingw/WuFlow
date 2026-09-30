@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WuFlow</title>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@2.3.4/lib/p5.js"></script>
+
+<style>
+html, body{
+    margin:0;
+    padding:0;
+    overflow:hidden;
+    background:#050506;
+    font-family:Segoe UI, sans-serif;
+}
+
+#task{
+    position:absolute;
+    top:24px;
+    left:50%;
+    transform:translateX(-50%);
+
+    width:min(600px,80vw);
+
+    padding:14px 18px;
+
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+
+    color:white;
+    font-size:18px;
+
+    border-radius:16px;
+
+    backdrop-filter:blur(12px);
+
+    z-index:100;
+}
+
+canvas{
+    display:block;
+}
+</style>
+</head>
+<body>
+
+<input id="task" placeholder="Current focus..." />
+
+<script>
+
+const phases = [
+{
+    name:"WOOD",
+    color:[70,210,120],
+    duration:120
+},
+{
+    name:"FIRE",
+    color:[255,110,70],
+    duration:1500
+},
+{
+    name:"EARTH",
+    color:[220,180,90],
+    duration:180
+},
+{
+    name:"METAL",
+    color:[220,225,235],
+    duration:300
+},
+{
+    name:"WATER",
+    color:[90,160,255],
+    duration:300
+}
+];
+
+let phase = 0;
+let startTime;
+
+let bgColor;
+let targetColor;
+
+let particles = [];
+
+const cycleRadius = 280;
+
+function setup() {
+
+    createCanvas(windowWidth, windowHeight);
+
+    startTime = millis();
+
+    bgColor = color(...phases[0].color);
+    targetColor = color(...phases[0].color);
+
+    textFont('Segoe UI');
+}
+
+function draw() {
+
+    updateBackground();
+
+    drawElementEffects();
+
+    drawCycleRing();
+
+    drawCenterPanel();
+}
+
+function updateBackground() {
+
+    bgColor =
+        lerpColor(
+            bgColor,
+            targetColor,
+            0.04
+        );
+
+    background(
+        red(bgColor) * .12,
+        green(bgColor) * .12,
+        blue(bgColor) * .12
+    );
+
+    noStroke();
+
+    for(let i=0;i<6;i++){
+
+        fill(
+            red(bgColor),
+            green(bgColor),
+            blue(bgColor),
+            8
+        );
+
+        circle(
+            width/2,
+            height/2,
+            300 + i * 180
+        );
+    }
+}
+
+function drawCycleRing(){
+
+    const cx = width/2;
+    const cy = height/2;
+
+    stroke(255,25);
+    strokeWeight(2);
+
+    noFill();
+
+    for(let i=0;i<phases.length;i++){
+
+        const a1 =
+            -HALF_PI +
+            i * TWO_PI/phases.length;
+
+        const a2 =
+            -HALF_PI +
+            ((i+1)%phases.length) *
+            TWO_PI/phases.length;
+
+        const x1 =
+            cx + cos(a1)*cycleRadius;
+
+        const y1 =
+            cy + sin(a1)*cycleRadius;
+
+        const x2 =
+            cx + cos(a2)*cycleRadius;
+
+        const y2 =
+            cy + sin(a2)*cycleRadius;
+
+        line(
+            x1,y1,
+            x2,y2
+        );
+    }
+
+    for(let i=0;i<phases.length;i++){
+
+        const p = phases[i];
+
+        const angle =
+            -HALF_PI +
+            i * TWO_PI/phases.length;
+
+        const x =
+            cx + cos(angle)*cycleRadius;
+
+        const y =
+            cy + sin(angle)*cycleRadius;
+
+        const active =
+            i === phase;
+
+        if(active){
+
+            drawingContext.shadowBlur = 35;
+
+            drawingContext.shadowColor =
+                `rgb(${p.color.join(",")})`;
+
+            fill(...p.color);
+
+            noStroke();
+
+            circle(x,y,62);
+
+            const elapsed =
+                (millis()-startTime)/1000;
+
+            const progress =
+                constrain(
+                    elapsed/p.duration,
+                    0,
+                    1
+                );
+
+            noFill();
+
+            stroke(...p.color);
+
+            strokeWeight(5);
+
+            arc(
+                x,
+                y,
+                82,
+                82,
+                -HALF_PI,
+                -HALF_PI +
+                progress*TWO_PI
+            );
+
+            drawingContext.shadowBlur = 0;
+        }
+        else {
+
+            fill(18);
+
+            stroke(...p.color);
+
+            strokeWeight(2);
+
+            circle(x,y,42);
+        }
+
+        noStroke();
+
+        fill(255);
+
+        textAlign(CENTER,CENTER);
+
+        textSize(14);
+
+        text(
+            p.name,
+            x,
+            y + 42
+        );
+    }
+}
+
+function drawCenterPanel(){
+
+    const p = phases[phase];
+
+    const elapsed =
+        (millis()-startTime)/1000;
+
+    const remaining =
+        max(
+            0,
+            p.duration - elapsed
+        );
+
+    const task =
+        document
+        .getElementById("task")
+        .value;
+
+    fill(255);
+
+    noStroke();
+
+    textAlign(CENTER,CENTER);
+
+    textSize(74);
+
+    text(
+        formatTime(remaining),
+        width/2,
+        height/2 - 10
+    );
+
+    fill(...p.color);
+
+    textSize(22);
+
+    text(
+        p.name,
+        width/2,
+        height/2 + 60
+    );
+
+    fill(190);
+
+    textSize(18);
+
+    const phasePrompts = {
+    WOOD: "Choose your next step",
+    FIRE: "Take action",
+    EARTH: "Review your progress",
+    METAL: "Organize and refine",
+    WATER: "Rest and recover"
+};
+
+    text(
+        task || phasePrompts[p.name],
+        width/2,
+        height/2 + 95
+    );
+
+
+    if(remaining <= 0){
+        nextPhase();
+    }
+}
+
+function drawElementEffects(){
+
+    switch(phases[phase].name){
+
+        case "WOOD":
+            drawLeaves();
+            break;
+
+        case "FIRE":
+            drawFire();
+            break;
+
+        case "EARTH":
+            drawEarth();
+            break;
+
+        case "METAL":
+            drawMetal();
+            break;
+
+        case "WATER":
+            drawWater();
+            break;
+    }
+}
+
+function drawLeaves(){
+
+    if(frameCount % 5 === 0){
+
+        particles.push({
+
+            x:random(width),
+            y:height + 20,
+
+            vx:random(-.6,.6),
+            vy:random(-1.5,-.5),
+
+            size:random(8,16),
+
+            life:255
+        });
+    }
+
+    updateParticles((p)=>{
+
+        fill(
+            100,
+            240,
+            150,
+            p.life
+        );
+
+        ellipse(
+            p.x,
+            p.y,
+            p.size,
+            p.size*.6
+        );
+    });
+}
+
+function drawFire(){
+
+    if(frameCount % 2 === 0){
+
+        particles.push({
+
+            x:random(width),
+
+            y:height + 10,
+
+            vx:random(-.5,.5),
+            vy:random(-4,-1),
+
+            size:random(3,10),
+
+            life:255
+        });
+    }
+
+    updateParticles((p)=>{
+
+        fill(
+            255,
+            160,
+            80,
+            p.life
+        );
+
+        circle(
+            p.x,
+            p.y,
+            p.size
+        );
+    });
+}
+
+function drawEarth(){
+
+    if(frameCount % 10 === 0){
+
+        particles.push({
+
+            x:random(width),
+            y:random(height),
+
+            vx:random(-.2,.2),
+            vy:0,
+
+            size:random(6,12),
+
+            life:255
+        });
+    }
+
+    updateParticles((p)=>{
+
+        fill(
+            210,
+            185,
+            120,
+            p.life
+        );
+
+        rect(
+            p.x,
+            p.y,
+            p.size,
+            p.size
+        );
+    });
+}
+
+function drawMetal(){
+
+    stroke(255,35);
+
+    noFill();
+
+    for(let i=0;i<12;i++){
+
+        push();
+
+        translate(
+            width/2,
+            height/2
+        );
+
+        rotate(
+            frameCount*.003 +
+            i*.4
+        );
+
+        circle(
+            0,
+            0,
+            250 + i*28
+        );
+
+        pop();
+    }
+}
+
+function drawWater(){
+
+    stroke(
+        100,
+        180,
+        255,
+        40
+    );
+
+    noFill();
+
+    for(let i=0;i<9;i++){
+
+        beginShape();
+
+        for(let x=0;x<=width;x+=20){
+
+            const y =
+                height/2 +
+                i*28 +
+                sin(
+                    x*.01 +
+                    frameCount*.03 +
+                    i
+                )*18;
+
+            vertex(x,y);
+        }
+
+        endShape();
+    }
+}
+
+function updateParticles(drawFn){
+
+    noStroke();
+
+    for(let i=particles.length-1;i>=0;i--){
+
+        const p = particles[i];
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        p.life -= 2;
+
+        drawFn(p);
+
+        if(p.life <= 0){
+
+            particles.splice(i,1);
+        }
+    }
+}
+
+function nextPhase(){
+
+    phase++;
+
+    if(phase >= phases.length)
+        phase = 0;
+
+    targetColor =
+        color(
+            ...phases[phase].color
+        );
+
+    particles = [];
+
+    startTime = millis();
+}
+
+function setPhase(index){
+
+    phase = index;
+
+    targetColor =
+        color(
+            ...phases[index].color
+        );
+
+    particles = [];
+
+    startTime = millis();
+}
+
+function mousePressed(){
+
+    const cx = width/2;
+    const cy = height/2;
+
+    for(let i=0;i<phases.length;i++){
+
+        const angle =
+            -HALF_PI +
+            i * TWO_PI/phases.length;
+
+        const x =
+            cx + cos(angle)*cycleRadius;
+
+        const y =
+            cy + sin(angle)*cycleRadius;
+
+        if(
+            dist(mouseX,mouseY,x,y)
+            < 40
+        ){
+            setPhase(i);
+        }
+    }
+}
+
+function formatTime(seconds){
+
+    seconds = floor(seconds);
+
+    const m =
+        floor(seconds/60);
+
+    const s =
+        seconds%60;
+
+    return (
+        String(m).padStart(2,'0')
+        + ":"
+        + String(s).padStart(2,'0')
+    );
+}
+
+function windowResized(){
+
+    resizeCanvas(
+        windowWidth,
+        windowHeight
+    );
+}
+
+</script>
+
+</body>
+</html>
